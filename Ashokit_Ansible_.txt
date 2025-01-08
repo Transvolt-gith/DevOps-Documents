@@ -1,0 +1,285 @@
+Project: Git + maven + Jenkins + Ansible + Docker + k8s
+
+=======================
+(1) Create EKS Host Vm
+=======================
+
+Launch new Ubuntu VM using AWS Ec2 ( t2.micro )
+
+ Connect to machine and Create eks Cluster
+
+
+=============================================
+(2) create Ubuntu vm for Jenkins (t2.mediam)
+=============================================
+       
+                 Install jeva
+
+      sudo apt update
+      sudo apt install fontconfig openjdk-17-jre
+      java -version
+
+               Install Jenkins
+
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc]" \
+  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update
+sudo apt-get install jenkins
+
+sudo systemctl status Jenkins
+
+
+=================================================
+(3) Create Amazon vm (t2.mediam) for Ansible-CN
+=================================================
+
+ installation of ansible
+
+   (a) switch to root user
+       
+      $ sudo su -
+
+   (b) create user
+
+      $ useradd ansadmin
+       
+      $ passwd ansadmin
+    
+   (c) add user in sudoers file
+
+       $ visudo
+         
+        ansadmin    ALL=(ALL)       ALL
+
+   (d) Enable pwd authentication sshd config file
+  
+       vim /etc/ssh/sshd_config
+       
+       PasswordAuthentication yes
+       PermitEmptyPasswords no
+
+   (e) Restart the ssh service
+ 
+      $ service sshd reload
+
+   (f) swith to ansadmin user
+  
+       $ sudo su - ansadmin
+
+   (g) Generate SSH KEY
+
+       $ ssh-keygen
+
+   (h) Switch to root user
+
+       $ sudo su -
+
+   (i) Install ansible
+  
+       $ python3 --version
+     
+       $ yum install ansible
+  
+       $ ansible --version
+
+
+===========================
+(4) Create docker host Vm 
+==========================
+
+create ubuntu vm (t2.micro) name it Docker-host
+
+ Install Docker
+
+sudo apt update
+curl -fsSL get.docker.com | /bin/bash
+sudo usermod -aG docker ubuntu 
+exit
+
+
+=======================================
+Integrate Docker host vm with ansible
+=======================================
+
+--On Docker host vm 
+
+ 1. Create ansadmin user
+ 2. Add ansadmin user in sudoers file
+ 3. Enable password based login     ------------>      vim /etc/ssh/sshd_config
+
+
+--On Ansible-CN vm 
+
+ 1. Add the host file
+ 2. Copy ssh keys
+ 3. Test the connection
+
+---------------------------------
+connect to the Ansible-CN server
+---------------------------------
+
+vi /etc/ansible/hosts
+
+add docker host private ip in this file
+
+           [docker]
+           172.31.26.172
+
+sudo su - ansadmin
+
+ssh-copy-id ansadmin@172.31.26.172
+
+
+ansible all -m ping         ----> ansible connection
+
+
+=======================================
+(5) Integrate EKS-Host vm with ansible
+=======================================
+
+--On EKS host vm 
+
+ 1. Create ansadmin user
+ 2. Add ansadmin user in sudoers file
+ 3. Enable password based login
+
+--On Ansible-CN vm 
+
+ 1. Add the host file
+ 2. Copy ssh keys
+ 3. Test the connection
+
+---------------------------------
+connect to the Ansible-CN server
+---------------------------------
+
+vi /etc/ansible/hosts
+
+add docker host private ip in this file
+
+           [docker]
+           172.31.26.172
+
+           [ekshost]
+           172.31.29.37    
+
+sudo su - ansadmin
+
+ssh-copy-id ansadmin@172.31.29.37    
+
+ansible all -m ping         ----> ansible connectionan
+
+
+====================================================
+(6) Create Remote root directory on Ansible-Cn node 
+====================================================
+
+sudo su - ansadmin
+
+mkdir slavenode        -------> all the Jenkins job will be store and execute in this directory.
+
+pwd        -----------> o/p   /home/ansadmin/slavenode
+
+
+
+===========================================================================
+(7) Now configure Ansible-Cn node as a slave node of Jenkins master node
+===========================================================================
+
+1. Go to the Jenkins Dashboard
+2. Go to the manage  Jenkins
+3. Go the manage nodes and clouds
+4. Click on 'New Node' --> enter Node Name --> Select Permanent Agent
+5. Enter Remote Root Directory ( /home/ansadmin/slavenode )
+6. Enter the Label name as Slave-1
+7. Select Launch Method as 'Launch Agent Via SSH'
+8. Give Host as "Slave VM DNS URL" or private ip address
+9. Add Credential ( Username and password )
+      Username: ansadmin
+      password: ansiblecn
+
+
+   or 9. Add Credential Select kind as : SSH username with private key 
+          Enter user name as: ubuntu  
+          Select Private Key as Enter Directly and add private key
+
+10. Host Key Verification Strategy ?
+    select: Manually trusted key verification strategy
+
+11. Availability ?
+    select: Keep this agent online as much as possible.
+
+12. save
+
+
+======================================================
+(8) Install java on ansible-slave-node i.e ansible-cn
+======================================================
+
+sudo yum install java -y
+
+
+===========================================
+(9) Add ansadmin user to the docker group
+===========================================
+
+on docker-host vm 
+
+
+ubuntu@ip-172-31-26-172:~$ sudo usermod -aG docker ansadmin                ubuntu se group me add karna hai.
+
+
+===============================================================================
+(10) Now login to the docker hub account from docker host vm to push the image
+===============================================================================
+on docker-host Vm
+
+sudo su - ansadmin
+
+docker login -u sushila91
+password: suraj@123
+
+
+
+======================================================================
+(11) Now give the Cluster access to the EKS-HOSt Vm ansadmin user
+=====================================================================  
+on Eks host Vm
+
+copy .kube/config file from ubuntu user to the ansadmin user
+
+ls -la 
+
+cd .kube/
+
+cat config
+
+exit
+
+Now switch to ansadmin user
+
+sudo su - ansadmin
+
+mkdir .kube
+
+cd .kube/
+
+vim config                            --------> paste the content of above .kube/config file data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
