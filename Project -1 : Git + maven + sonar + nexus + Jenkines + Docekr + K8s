@@ -1,0 +1,89 @@
+=============
+CI Pipe line
+=============
+
+pipeline {
+    agent any
+    
+    tools {
+        maven "Maven-3.9.9"
+    }
+
+    stages {
+        stage('Clone git Repository') {
+            steps {
+                git branch: 'main', credentialsId: 'Transvolt-Github-Credential', url: 'https://github.com/Transvolt-gith/Suraj-Maven-Devops.git'
+            }
+        }
+        
+        stage('Maven Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        
+        stage('Code Review') {
+            steps {
+                withSonarQubeEnv('sonar-9.9.8') {
+                sh 'mvn sonar:sonar'    
+                }
+            }
+        }
+        
+        stage('Artifact Upload to Nexus Repository') {
+            steps {
+                nexusArtifactUploader artifacts: [[artifactId: 'suraj-maven-web-app', classifier: '', file: 'target/suraj-maven-web-app.war', type: 'war']], credentialsId: 'Nexus-Credentials', groupId: 'in.surajit', nexusUrl: '54.221.131.107:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'surajit-snapshot-repo', version: '3.0-SNAPSHOT'
+            }
+        }
+        
+        
+        stage('Docker Image') {
+            steps {
+                sh 'docker build -t sushila91/surajit:mavenwebapp .'
+            }
+        }
+        
+        stage('Docker Image Push') {
+            steps  {
+                withCredentials([string(credentialsId: 'docker-acc-password', variable: 'dockerpwd')]) {
+                    sh "docker login -u sushila91 -p ${dockerpwd}"
+                    sh "docker push sushila91/surajit:mavenwebapp"
+                }
+            }
+        }
+        
+        stage('Trigger CD job') {
+            steps {
+            build 'Suraj_It_Cd_Job_P1'    
+            }
+        }
+    }
+}    
+
+
+
+
+
+=============
+CD pipe line 
+=============
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Git Clone') {
+            steps {
+                git branch: 'main', credentialsId: 'Transvolt-Github-Credential', url: 'https://github.com/Transvolt-gith/Suraj-Maven-Devops.git'
+            }
+        }
+        
+        stage('K8s Deployment') {
+            steps {
+                sh 'kubectl delete deployment mavenwebappdeployment'
+                sh 'kubectl apply -f k8s-deploy.yml'
+            }
+        }
+    }
+}
+
