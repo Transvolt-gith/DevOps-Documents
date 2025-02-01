@@ -53,6 +53,12 @@ eksctl create cluster --name ashokit-cluster4 --region us-east-1 --node-type t2.
 ## Mumbai: <br/>
 `
 eksctl create cluster --name ashokit-cluster4 --region ap-south-1 --node-type t2.medium  --zones ap-south-1a,ap-south-1b
+
+
+# Launch cluster in fargate mode so that AWS will automatically upgrade the cluster. we dont need to upgrade manually.
+
+eksctl create cluster --name lentra-app-cluster --region us-east-1 --node-type t2.medium --nodes 3 --nodes-min 1 --nodes-max 4 --managed
+
 `
 
 ## Note: Cluster creation will take 5 to 10 mins of time (we have to wait). After cluster created we can check nodes using below command.
